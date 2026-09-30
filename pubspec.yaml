@@ -1,0 +1,10 @@
+name: citizenship_data
+description: The current answers (officeholders, senators, governors, capitals) for the U.S. citizenship study app, rebuilt from official sources.
+publish_to: none
+
+environment:
+  sdk: ^3.13.4
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.0

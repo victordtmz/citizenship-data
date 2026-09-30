@@ -1,0 +1,9 @@
+{
+  "note": "Which 2025 civics test question asks about which office. Question numbers are from the USCIS 2025 test (M-1778) and its test-updates page.",
+  "office_by_question": {
+    "30": "speaker_of_the_house",
+    "38": "president",
+    "39": "vice_president",
+    "57": "chief_justice"
+  }
+}
