@@ -1,0 +1,96 @@
+# Once a week: read the official sources again and compare with the
+# published current_answers.json.
+#
+#   A name changed  → open (or refresh) a pull request that lists each
+#                     change. Nothing is published until Victor merges it.
+#   Only dates      → record the new "checked" date on main, so the app can
+#                     say when the names were last verified.
+#   Anything fails  → the run fails, GitHub emails, nothing is changed.
+
+name: Weekly check of the official sources
+
+on:
+  schedule:
+    - cron: "0 14 * * 1" # Mondays 14:00 UTC (9 AM Central)
+  workflow_dispatch: # "Run workflow" button, for a check on demand
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: weekly-update
+  cancel-in-progress: false
+
+env:
+  UPDATE_BRANCH: current-answers-update
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.4
+
+      - name: Install
+        run: dart pub get
+
+      - name: Test the page readers
+        run: dart test
+
+      - name: Read the official sources
+        run: |
+          cp current_answers.json "$RUNNER_TEMP/published.json"
+          dart run tool/build_current_answers.dart
+
+      - name: Compare names with the published file
+        id: compare
+        run: |
+          dart run tool/describe_changes.dart "$RUNNER_TEMP/published.json" current_answers.json > "$RUNNER_TEMP/changes.md"
+          if [ -s "$RUNNER_TEMP/changes.md" ]; then
+            echo "names_changed=true" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/changes.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "names_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No names changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Set the commit author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Only dates changed, so record the check on main
+        if: steps.compare.outputs.names_changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! git diff --quiet; then
+            git commit -am "Checked the official sources: no names changed"
+            git push
+          fi
+          # A pull request from an earlier week no longer applies.
+          if gh pr view "$UPDATE_BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr close "$UPDATE_BRANCH" --delete-branch \
+              --comment "The official sources match the published file again; nothing to change."
+          fi
+
+      - name: Names changed, so open or refresh the pull request
+        if: steps.compare.outputs.names_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git switch -c "$UPDATE_BRANCH"
+          git commit -am "Current answers changed ($(date -u +%F))"
+          git push --force origin "$UPDATE_BRANCH"
+          if gh pr view "$UPDATE_BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$UPDATE_BRANCH" --body-file "$RUNNER_TEMP/changes.md"
+          else
+            gh pr create --head "$UPDATE_BRANCH" --base main \
+              --title "Current answers changed" \
+              --body-file "$RUNNER_TEMP/changes.md"
+          fi

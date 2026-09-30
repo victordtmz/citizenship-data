@@ -28,10 +28,18 @@ not the state, so it is not here: the user types it into the app.
 
 ## How it is updated
 
-Every week a GitHub Action runs the updater. If any name changed, it opens a
-pull request showing exactly what changed. **Merging the pull request
-publishes it.** Nothing reaches the app without that review. If a source
-fails or a check does not pass, the run fails and nothing is proposed.
+Every Monday a GitHub Action
+([`weekly-update.yml`](.github/workflows/weekly-update.yml)) runs the updater
+and compares the names with the published file:
+
+| What it finds | What it does |
+| --- | --- |
+| A name changed (officeholder, senator, governor, capital) | Opens a pull request listing each change. **Merging it publishes the names.** Nothing reaches the app without that review |
+| Only dates changed | Commits the new `checked` date to `main`, so the app can say when the names were last verified |
+| A source failed, or a check did not pass | The run fails, GitHub emails, nothing changes |
+
+To check on demand: **Actions → Weekly check of the official sources → Run
+workflow**.
 
 To run the updater by hand, from the repository root:
 
