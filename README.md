@@ -30,6 +30,52 @@ district: every place lists its seats by district (`"1"`, `"2"`, … or
 the Clerk lists as vacant has `"name": null`. The Clerk codes American Samoa
 `AQ`; the file uses `AS`.
 
+## ZIP codes → districts
+
+**The file:** [`zip_districts.json`](zip_districts.json), served at
+`https://victordtmz.github.io/citizenship-data/zip_districts.json`. The app
+uses it to find the user's representative from their ZIP code, offline.
+
+```json
+{
+  "schema_version": 1,
+  "congress": 119,
+  "built": "2026-10-08",
+  "source": { "url": "…", "name": "U.S. Census Bureau, ZCTA to 119th Congressional District relationship file" },
+  "zips": {
+    "10001": ["NY-12"],
+    "77002": ["TX-18","TX-7"],
+    "99501": ["AK-at-large"]
+  }
+}
+```
+
+- Built from the Census Bureau's
+  [ZIP code area ↔ congressional district file](https://www2.census.gov/geo/docs/maps-data/data/rel2020/cd-sld/)
+  for the Congress that `current_answers.json` lists representatives for
+  (`sources.representatives.congress`), so the two always match.
+- About 17% of ZIP codes lie in more than one district. Their districts are
+  listed **by how much of the ZIP code's land each covers, largest first**;
+  none is dropped (land is not people). Districts that only touch a ZIP code
+  across water are left out.
+- Districts are written as in `current_answers.json`: `"NY-7"`, or
+  `"AK-at-large"` for a state's only seat and for D.C. and the territories.
+
+**It is not part of the weekly check.** Districts only change when a new
+Congress is seated or a state redraws its map. Then, after the
+representatives for the new Congress are in `current_answers.json`:
+
+```
+dart run tool/build_zip_districts.dart
+```
+
+It checks that every seat can be reached from some ZIP code and that no ZIP
+code points to a district without a seat (the sign of a map for a different
+Congress), and writes nothing otherwise. Next due: **January 2027**, when the
+120th Congress is seated (several states redrew their maps for 2026); the
+Census publishes the 120th Congress file some months later, and until then
+the map may point a few redrawn ZIP codes to the wrong district.
+
 ## How it is updated
 
 Every Monday a GitHub Action
