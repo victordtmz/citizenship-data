@@ -15,6 +15,7 @@ Pages at
 | --- | --- | --- |
 | President, Vice President, Speaker, Chief Justice | 38, 39, 30, 57 | [uscis.gov/citizenship/testupdates](https://www.uscis.gov/citizenship/testupdates): every name form USCIS accepts |
 | Senators | 23 | [senate.gov](https://www.senate.gov/general/contact_information/senators_cfm.xml): the Senate's own list |
+| Representatives | 29 | [clerk.house.gov](https://clerk.house.gov/xml/lists/MemberData.xml): the Clerk of the House's member list, every district and delegate |
 | Governors | 61 | [usa.gov/states-and-territories](https://www.usa.gov/states-and-territories): one page per state and territory |
 | Capitals | 62 | The USCIS 2025 Civics Test Study Guide map (p. 41), kept in [`tool/data/jurisdictions.json`](tool/data/jurisdictions.json) |
 
@@ -23,8 +24,11 @@ These are the pages USCIS itself points to. Nothing is typed from memory.
 The 50 states, D.C. and the five territories are all included. D.C. has no
 senators, governor or capital, and the territories have no senators; USCIS's
 official notes say what those applicants should answer, and the app shows
-them. The representative (question 29) depends on the congressional district,
-not the state, so it is not here: the user types it into the app.
+them. The representative (question 29) depends on the congressional
+district: every place lists its seats by district (`"1"`, `"2"`, … or
+`"at-large"` for a state's only seat and for the six delegates), and a seat
+the Clerk lists as vacant has `"name": null`. The Clerk codes American Samoa
+`AQ`; the file uses `AS`.
 
 ## How it is updated
 
@@ -50,7 +54,9 @@ dart run tool/build_current_answers.dart
 
 It checks everything before writing (four officeholders, two senators per
 state, none for D.C. or the territories, a governor everywhere but D.C., a
-capital everywhere but D.C.) and writes nothing if a check fails.
+capital everywhere but D.C., 441 House seats numbered without gaps or one
+at-large seat, one delegate for D.C. and each territory) and writes nothing
+if a check fails.
 
 `dart test` checks the page readers against small samples of each site.
 
@@ -58,13 +64,14 @@ capital everywhere but D.C.) and writes nothing if a check fails.
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "checked": "2026-09-29",
   "sources": { "officeholders": { "url": "…", "source_updated": "09/18/2025" }, "…": {} },
   "officeholders": { "president": ["Donald J. Trump", "Donald Trump", "Trump"], "…": [] },
   "jurisdictions": [
     { "code": "TX", "name": "Texas", "kind": "state", "capital": "Austin",
-      "governor": "Greg Abbott", "senators": ["John Cornyn", "Ted Cruz"] }
+      "governor": "Greg Abbott", "senators": ["John Cornyn", "Ted Cruz"],
+      "representatives": [{ "district": "1", "name": "Nathaniel Moran" }, "…"] }
   ]
 }
 ```

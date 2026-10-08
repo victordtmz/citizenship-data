@@ -14,6 +14,7 @@
 /// | --- | --- |
 /// | President, Vice President, Speaker, Chief Justice | uscis.gov/citizenship/testupdates |
 /// | Senators | senate.gov (the Senate's own XML list) |
+/// | Representatives | clerk.house.gov (the Clerk's member XML) |
 /// | Governors | usa.gov/states-and-territories, one page per state |
 /// | Capitals | the USCIS study guide map, in `tool/data/jurisdictions.json` |
 ///
@@ -53,6 +54,9 @@ Future<void> main() async {
   stdout.writeln('Reading the Senate list…');
   final senate = parseSenateXml(await download(OfficialSources.senators));
 
+  stdout.writeln('Reading the House list…');
+  final house = parseHouseXml(await download(OfficialSources.houseMembers));
+
   stdout.writeln(
     'Reading ${jurisdictions.length} usa.gov pages for governors…',
   );
@@ -61,6 +65,7 @@ Future<void> main() async {
   final problems = [
     ..._checkOfficeholders(officeholders, officeByQuestion.values),
     ..._checkJurisdictions(jurisdictions, senate, governors),
+    ..._checkHouse(jurisdictions, house),
   ];
   if (problems.isNotEmpty) {
     _fail(
@@ -69,7 +74,7 @@ Future<void> main() async {
   }
 
   final asset = {
-    'schema_version': 1,
+    'schema_version': 2,
     'checked': today,
     'sources': {
       'officeholders': {
@@ -79,6 +84,11 @@ Future<void> main() async {
       'senators': {
         'url': OfficialSources.senators,
         'source_updated': senate.listUpdated,
+      },
+      'representatives': {
+        'url': OfficialSources.houseMembers,
+        'source_updated': house.publishDate,
+        'congress': house.congress,
       },
       'governors': {'url': OfficialSources.usaGovStates},
       'capitals': {'reference': input['capitals_source']},
@@ -97,6 +107,10 @@ Future<void> main() async {
           'governor': governors[jurisdiction['code']],
           'senators':
               senate.namesByState[jurisdiction['code']] ?? const <String>[],
+          'representatives': [
+            for (final seat in house.seatsByState[jurisdiction['code']]!)
+              seat.toJson(),
+          ],
         },
     ],
   };
@@ -187,6 +201,57 @@ List<String> _checkJurisdictions(
   );
   if (unknownStates.isNotEmpty) {
     problems.add('Senate list has unknown states: $unknownStates.');
+  }
+  return problems;
+}
+
+/// The House has 435 districts and 6 delegates: one seat or more for every
+/// place, numbered 1, 2, 3… with no gaps, or a single at-large seat. Vacant
+/// seats are allowed (the Clerk says so), but a whole House of them is not.
+List<String> _checkHouse(
+  List<Map<String, dynamic>> jurisdictions,
+  HouseList house,
+) {
+  final problems = <String>[];
+  for (final jurisdiction in jurisdictions) {
+    final code = jurisdiction['code'] as String;
+    final seats = house.seatsByState[code] ?? const <HouseSeat>[];
+    final districts = seats.map((seat) => seat.district).toList();
+    final isAtLarge = districts.length == 1 && districts.single == 'at-large';
+    final isNumbered =
+        districts.isNotEmpty &&
+        [for (var number = 1; number <= districts.length; number++) '$number']
+                .join(',') ==
+            districts.join(',');
+    if (!isAtLarge && !isNumbered) {
+      problems.add('$code: House districts are not as expected: $districts.');
+    }
+    // D.C. and the territories have one delegate, never numbered districts.
+    if (jurisdiction['kind'] != 'state' && !isAtLarge) {
+      problems.add('$code: expected one delegate, found $districts.');
+    }
+  }
+
+  final seatCount = house.seatsByState.values.fold<int>(
+    0,
+    (count, seats) => count + seats.length,
+  );
+  if (seatCount != 441) {
+    problems.add('House list has $seatCount seats, not 441 (435 + 6).');
+  }
+  final vacant = house.seatsByState.values
+      .expand((seats) => seats)
+      .where((seat) => seat.name == null)
+      .length;
+  if (vacant > 20) {
+    problems.add('House list: $vacant vacant seats; the file looks broken.');
+  }
+
+  final unknownStates = house.seatsByState.keys.toSet().difference(
+    jurisdictions.map((j) => j['code']).toSet(),
+  );
+  if (unknownStates.isNotEmpty) {
+    problems.add('House list has unknown states: $unknownStates.');
   }
   return problems;
 }

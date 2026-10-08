@@ -13,7 +13,11 @@ void main() {
       "officeholders": { "president": ["Donald J. Trump", "Donald Trump", "Trump"] },
       "jurisdictions": [
         { "code": "TX", "name": "Texas", "kind": "state", "capital": "Austin",
-          "governor": "Greg Abbott", "senators": ["John Cornyn", "Ted Cruz"] }
+          "governor": "Greg Abbott", "senators": ["John Cornyn", "Ted Cruz"],
+          "representatives": [
+            { "district": "7", "name": "Lizzie Fletcher" },
+            { "district": "23", "name": null }
+          ] }
       ]
     }''') as Map<String, dynamic>;
 
@@ -67,5 +71,47 @@ void main() {
     final fresh = sample()..['jurisdictions'] = [];
 
     expect(describeNameChanges(sample(), fresh), ['**Texas** removed']);
+  });
+
+  test('a new representative, and a vacancy filled', () {
+    final fresh = sample();
+    (fresh['jurisdictions'] as List).first['representatives'] = [
+      {'district': '7', 'name': 'Ann Other'},
+      {'district': '23', 'name': 'New Member'},
+    ];
+
+    expect(describeNameChanges(sample(), fresh), [
+      '**Texas district 7**: Lizzie Fletcher → Ann Other',
+      '**Texas district 23**: (vacant) → New Member',
+    ]);
+  });
+
+  test('a seat falling vacant', () {
+    final fresh = sample();
+    (fresh['jurisdictions'] as List).first['representatives'] = [
+      {'district': '7', 'name': null},
+      {'district': '23', 'name': null},
+    ];
+
+    expect(describeNameChanges(sample(), fresh), [
+      '**Texas district 7**: Lizzie Fletcher → (vacant)',
+    ]);
+  });
+
+  test('an at-large seat reads as "representative"', () {
+    Map<String, dynamic> alaska(String name) => sample()
+      ..['jurisdictions'] = [
+        {
+          'code': 'AK',
+          'name': 'Alaska',
+          'representatives': [
+            {'district': 'at-large', 'name': name},
+          ],
+        },
+      ];
+
+    expect(describeNameChanges(alaska('A'), alaska('B')), [
+      '**Alaska representative**: A → B',
+    ]);
   });
 }

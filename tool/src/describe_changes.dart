@@ -2,8 +2,8 @@
 /// describes, in plain words, every name that changed: the body of the pull
 /// request you review before anything is published.
 ///
-/// Only names count as changes: officeholders, senators, governors,
-/// capitals, and which places are listed. The dates (`checked`, and when
+/// Only names count as changes: officeholders, senators, representatives,
+/// governors, capitals, and which places are listed. The dates (`checked`, and when
 /// each source last updated itself) change almost every week and are not
 /// worth a review.
 List<String> describeNameChanges(
@@ -70,8 +70,40 @@ List<String> _placeChanges(
         );
       }
     }
+    changes.addAll(
+      _representativeChanges(
+        after['name'] as String,
+        before['representatives'] as List?,
+        after['representatives'] as List?,
+      ),
+    );
   }
   return changes;
+}
+
+/// One line per district whose representative changed:
+/// "**New York district 7**: Old Name → New Name", "(vacant)" for an empty
+/// seat. A file without representatives (schema 1) counts as none.
+List<String> _representativeChanges(
+  String place,
+  List? published,
+  List? fresh,
+) {
+  Map<String, String?> byDistrict(List? seats) => {
+    for (final seat in (seats ?? const []).cast<Map<String, dynamic>>())
+      seat['district'] as String: seat['name'] as String?,
+  };
+  String describe(Map<String, String?> seats, String district) =>
+      !seats.containsKey(district) ? '(none)' : seats[district] ?? '(vacant)';
+
+  final before = byDistrict(published);
+  final after = byDistrict(fresh);
+  return [
+    for (final district in {...before.keys, ...after.keys})
+      if (describe(before, district) != describe(after, district))
+        '**$place ${district == 'at-large' ? 'representative' : 'district $district'}**: '
+            '${describe(before, district)} → ${describe(after, district)}',
+  ];
 }
 
 Map<String, Map<String, dynamic>> _placesByCode(List places) => {

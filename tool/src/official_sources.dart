@@ -11,6 +11,8 @@ abstract final class OfficialSources {
   static const senators =
       'https://www.senate.gov/general/contact_information/senators_cfm.xml';
   static const usaGovStates = 'https://www.usa.gov/states-and-territories';
+  static const houseMembers =
+      'https://clerk.house.gov/xml/lists/MemberData.xml';
 
   static String usaGovPage(String page) => 'https://www.usa.gov/states/$page';
 }
@@ -144,4 +146,95 @@ String? parseUsaGovGovernor(String html) {
     }
   }
   return null;
+}
+
+/// One seat in the House: a district and who holds it.
+class HouseSeat {
+  const HouseSeat({required this.district, required this.name});
+
+  /// `"1"`, `"2"`, … or `"at-large"` for a state's only seat, and for the
+  /// delegates of D.C. and the territories.
+  final String district;
+
+  /// The member's official name, or null while the seat is vacant.
+  final String? name;
+
+  Map<String, Object?> toJson() => {'district': district, 'name': name};
+}
+
+/// The House, as the Clerk lists it.
+class HouseList {
+  HouseList({
+    required this.seatsByState,
+    required this.congress,
+    required this.publishDate,
+  });
+
+  /// Two-letter code → seats, in district order.
+  final Map<String, List<HouseSeat>> seatsByState;
+
+  /// Which Congress the list is for, e.g. 119.
+  final int congress;
+
+  /// The Clerk's own publish date, as written ("October 1, 2026").
+  final String publishDate;
+}
+
+/// The Clerk codes American Samoa `AQ`; everywhere else it is `AS`.
+const _clerkStateCodes = {'AQ': 'AS'};
+
+/// Reads the Clerk of the House's member XML.
+///
+/// Each `<member>` has a `<statedistrict>` such as `NY07`, or `AK00` for an
+/// at-large seat and for the delegates, and an `<official-name>` that is
+/// empty while the seat is vacant.
+HouseList parseHouseXml(String xml) {
+  String field(String block, String name) => decodeEntities(
+    RegExp(
+          '<$name>(.*?)</$name>',
+          dotAll: true,
+        ).firstMatch(block)?.group(1)?.trim() ??
+        '',
+  );
+
+  final members = RegExp(
+    r'<members>(.*?)</members>',
+    dotAll: true,
+  ).firstMatch(xml)?.group(1);
+  if (members == null) {
+    throw const FormatException('House XML: no <members> list.');
+  }
+
+  final byState = <String, List<({int number, HouseSeat seat})>>{};
+  for (final member in RegExp(
+    r'<member>(.*?)</member>',
+    dotAll: true,
+  ).allMatches(members)) {
+    final block = member.group(1)!;
+    final stateDistrict = field(block, 'statedistrict');
+    final clerkState = stateDistrict.substring(0, 2);
+    final state = _clerkStateCodes[clerkState] ?? clerkState;
+    final number = int.parse(stateDistrict.substring(2));
+    final name = field(block, 'official-name');
+
+    byState.putIfAbsent(state, () => []).add((
+      number: number,
+      seat: HouseSeat(
+        district: number == 0 ? 'at-large' : '$number',
+        name: name.isEmpty ? null : name,
+      ),
+    ));
+  }
+
+  return HouseList(
+    seatsByState: {
+      for (final entry in byState.entries)
+        entry.key: (entry.value..sort((a, b) => a.number.compareTo(b.number)))
+            .map((entry) => entry.seat)
+            .toList(),
+    },
+    congress: int.parse(field(xml, 'congress-num')),
+    publishDate:
+        RegExp(r'publish-date="([^"]*)"').firstMatch(xml)?.group(1) ?? '',
+  );
 }

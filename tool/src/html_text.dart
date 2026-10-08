@@ -6,9 +6,7 @@ List<String> htmlToLines(String html) {
     RegExp(r'<script.*?</script>|<style.*?</style>', dotAll: true),
     '',
   );
-  final text = _decodeEntities(
-    withoutCode.replaceAll(RegExp(r'<[^>]+>'), '\n'),
-  );
+  final text = decodeEntities(withoutCode.replaceAll(RegExp(r'<[^>]+>'), '\n'));
   return text
       .split('\n')
       .map((line) => line.trim())
@@ -32,7 +30,7 @@ const _namedEntities = {
 };
 
 /// Decodes `&amp;`, `&rsquo;`, `&#8217;` and `&#x2019;` style entities.
-String _decodeEntities(String text) => text.replaceAllMapped(
+String decodeEntities(String text) => text.replaceAllMapped(
   RegExp(r'&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);'),
   (match) {
     final entity = match.group(1)!;
