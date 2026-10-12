@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "checked": "2026-10-08",
+  "checked": "2026-10-12",
   "sources": {
     "officeholders": {
       "url": "https://www.uscis.gov/citizenship/testupdates",
@@ -8,7 +8,7 @@
     },
     "senators": {
       "url": "https://www.senate.gov/general/contact_information/senators_cfm.xml",
-      "source_updated": "2026-09-23T13:19-05:00"
+      "source_updated": "2026-10-08T14:47-05:00"
     },
     "representatives": {
       "url": "https://clerk.house.gov/xml/lists/MemberData.xml",
