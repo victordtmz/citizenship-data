@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "checked": "2026-11-02",
+  "checked": "2026-11-09",
   "sources": {
     "officeholders": {
       "url": "https://www.uscis.gov/citizenship/testupdates",
@@ -8,11 +8,11 @@
     },
     "senators": {
       "url": "https://www.senate.gov/general/contact_information/senators_cfm.xml",
-      "source_updated": "2026-10-08T14:47-05:00"
+      "source_updated": "2026-11-06T13:08-05:00"
     },
     "representatives": {
       "url": "https://clerk.house.gov/xml/lists/MemberData.xml",
-      "source_updated": "October 1, 2026",
+      "source_updated": "November 3, 2026",
       "congress": 119
     },
     "governors": {
